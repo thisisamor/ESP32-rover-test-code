@@ -5,7 +5,8 @@
 int length = 3600; // mm
 int width = 2400; 
 
-int intersect_TH = 0; // TODO: slightly larger than 0? 
+int intersect_TH = 1; // TODO: slightly larger than 0? 
+int same_position_TH = 20; 
 
 int wheel_diameter = 65; 
 int steps_per_revo = 200;
@@ -81,7 +82,19 @@ std::pair<int, int> position_estimation(std::pair<int, int> current_position, do
     return current_position; 
 }
 
-bool check_intersection(std::pair<int, int> node1, std::pair<int, int> node2, std::pair<int, int> node3, std::pair<int, int> node4)
+bool same_position(std::pair<int, int> position1, std::pair<int, int> position2)
+{
+    if ( abs(position1.first-position2.first)<=same_position_TH && abs(position1.second-position2.second)<=same_position_TH )
+    {
+        return true; 
+    }
+    else 
+    {
+        return false; 
+    }
+}
+
+int check_intersection(std::pair<int, int> node1, std::pair<int, int> node2, std::pair<int, int> node3, std::pair<int, int> node4)
 {
     int x1 = node1.first; 
     int x2 = node2.first; 
@@ -92,17 +105,25 @@ bool check_intersection(std::pair<int, int> node1, std::pair<int, int> node2, st
     int y3 = node3.second; 
     int y4 = node4.second; 
     // avoid overflow
-    double A = ( (y3-y2)*(x3-x1) - (x3-x2)*(y3-y1) )/1000.0 * ( (y4-y2)*(x4-x1) - (x4-x2)*(y4-y1) )/1000.0; 
-    double B = ( (y1-y4)*(x1-x3) - (x1-x4)*(y1-y3) )/1000.0 * ( (y2-y4)*(x2-x3) - (x2-x4)*(y2-y3) )/1000.0; 
+    double A = ( (y3-y2)*(x3-x1) - (x3-x2)*(y3-y1) )/1000.0 * ( (y4-y2)*(x4-x1) - (x4-x2)*(y4-y1) )/1000.0; // 3 4 different sides of 1 2
+    double B = ( (y1-y4)*(x1-x3) - (x1-x4)*(y1-y3) )/1000.0 * ( (y2-y4)*(x2-x3) - (x2-x4)*(y2-y3) )/1000.0; // 1 2 different sides of 3 4
 
-    if ( std::min(A, B) < intersect_TH && std::max(A, B) <= intersect_TH )
+    if ( A <= -intersect_TH && B <= -intersect_TH ) 
     {
-        return true; 
+        return 11; 
+    }
+    else if ( A <= -intersect_TH && B <= intersect_TH && B >= -intersect_TH ) 
+    {
+        return 10; 
+    }
+    else if ( B <= -intersect_TH && A <= intersect_TH && A >= -intersect_TH )
+    {
+        return 01; 
     }
     else
     {
-        return false; 
-    }  
+        return 00; 
+    } 
 }
 
 std::pair<int, int> intersection_calculation(std::pair<int, int> node1, std::pair<int, int> node2, std::pair<int, int> node3, std::pair<int, int> node4)

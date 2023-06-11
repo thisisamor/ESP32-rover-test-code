@@ -33,6 +33,7 @@ MPU_6050 mpu6050 = MPU_6050(0.98);    // Creating an object for the MPU 6050 and
 String camera_detection_wall; 
 String camera_detection_beacon; 
 // int camera_command; 
+double route_angle; 
 
 void setup() {
   Serial.begin(9600);
@@ -54,12 +55,12 @@ void setup() {
   pinMode(DIRR, OUTPUT);
   pinMode(DIRL, OUTPUT);
 
-  graph_init(); 
   // Initializing the MPU 6050
   mpu6050.activate();
   mpu6050.gyro_calibrate();
 
   graph_init(); 
+  // data_memo_init();  // TODO: check & correct start position
 
   // wifi_connection(); 
 }
@@ -130,6 +131,7 @@ void loop() {
       camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
       if (camera_detection_wall == "111")
       {
+        route_angle = get_current_angle(); 
         next_state(1); 
       }
     }
@@ -146,6 +148,7 @@ void loop() {
       camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
       if (camera_detection_wall == "111")
       {
+        route_angle = get_current_angle(); 
         next_state(1); 
       }
     }
@@ -158,10 +161,10 @@ void loop() {
       Serial.println("Locating the beacons"); 
       init_turn_count(); 
       do {  
-        motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 0, 1}, 5); 
-        track_turn_count(5); 
         camera_detection_beacon = read_FPGA_beacon(beacon_0, beacon_1); 
         track_beacon_angle(camera_detection_beacon); 
+        motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 0, 1}, 5); 
+        track_turn_count(5); // TODO: double check
       } while ( track_beacon_angle(camera_detection_beacon)[1] != 1 || track_beacon_angle(camera_detection_beacon)[2] != 1 || track_beacon_angle(camera_detection_beacon)[3] != 1 ); 
 
       calculate_current_position(); 
@@ -180,21 +183,29 @@ void loop() {
     {
       Serial.println("Finding next path"); 
       
-      std::vector<std::vector<int>> motor_command = find_new_path(); 
-      std::vector<int> break_indicator = {0, 0, 0, 0, 0}; 
-      if( motor_command[0] != break_indicator)
+      if (route_angle != 100) // use memorised route angle
       {
-        motor_control_command_list(STPL, STPR, DIRL, DIRR, motor_command); 
-
-        // wall detection
-        camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
-        if (camera_detection_wall == "000")
+        // TODO: turn to route angle
+        route_angle = 100; 
+      }
+      else
+      {
+        std::vector<std::vector<int>> motor_command = find_new_path(); 
+        std::vector<int> break_indicator = {0, 0, 0, 0, 0}; 
+        if( motor_command[0] != break_indicator)
         {
-          check_node_at_new_path(); // TODO: possible to optimise
-          // TODO: review process stack
-          next_state(1); 
-        }
-      } // else: next loop would entre "finish" state
+          motor_control_command_list(STPL, STPR, DIRL, DIRR, motor_command); 
+
+          // wall detection
+          camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
+          if (camera_detection_wall == "000")
+          {
+            check_node_at_new_path(); // TODO: possible to optimise
+            // TODO: review process stack
+            next_state(1); 
+          }
+        } // else: next loop would entre "finish" state
+      }
     }
   }
     

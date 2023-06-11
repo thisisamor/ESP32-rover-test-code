@@ -75,7 +75,8 @@ int get_state()
 
 // ------------------------- track position -----------------------------
 double current_angle = -M_PI_2; 
-std::pair<int, int> current_position = {0, 0}; 
+std::pair<int, int> current_position = {175, -175}; 
+// TODO: may change for init position
 
 int stepper_count; // forward
 int turn_count; 
@@ -314,14 +315,14 @@ std::vector<int> delete_connect( std::vector<std::vector<int>> &connect, int del
     Serial.println("Wrong: delete connection failed!"); 
 }
 
-void insert_new_node( struct HashTable* ht, int node1_id, int node2_id, int new_node_id )
+void insert_new_node( int node1_id, int node2_id, int new_node_id )
 {
     std::vector<int> node1_migrate; 
     std::vector<int> node2_migrate; 
 
     // modify node1 connect
     int hashValue = hashFunction(node1_id); 
-    struct HashEntry* current = ht->table[hashValue];
+    struct HashEntry* current = node_graph->table[hashValue];
     while (current != NULL) 
     {
         if (current->key == hashValue) 
@@ -334,7 +335,7 @@ void insert_new_node( struct HashTable* ht, int node1_id, int node2_id, int new_
 
     // modify node2 connect
     hashValue = hashFunction(node2_id); 
-    current = ht->table[hashValue];
+    current = node_graph->table[hashValue];
     while (current != NULL) 
     {
         if (current->key == hashValue) 
@@ -347,7 +348,7 @@ void insert_new_node( struct HashTable* ht, int node1_id, int node2_id, int new_
 
     // add node 1 and node 2 connection into new_node
     hashValue = hashFunction(new_node_id); 
-    current = ht->table[hashValue];
+    current = node_graph->table[hashValue];
     while (current != NULL) 
     {
         if (current->key == hashValue) 
@@ -365,7 +366,7 @@ void insert_new_node( struct HashTable* ht, int node1_id, int node2_id, int new_
 // ----------------------------- process stack ---------------------------
 struct Process
 {
-    std::pair<int, int> node_id_pair;   // node1 -> node2
+    std::pair<int, int> node_id_pair;   // node1 -> node2 (older to newer)
     std::pair<bool, bool> path_left_right_checked; 
     std::pair<bool, bool> node_left_right_checked; 
     Process* last_process; 
@@ -395,7 +396,7 @@ void add_process()
     new_process->node_id_pair = new_node_id_pair; 
     new_process->node_left_right_checked = {false, false}; 
     stack->path_left_right_checked = {false, false};
-    if (lastState == turn_left)
+    if (lastState == turn_left)   // TODO: warning?
     {
         stack->node_left_right_checked.second = true; 
     }
@@ -425,7 +426,7 @@ void split_process(std::pair<int, int> pair_to_split, int new_id)
     {
         tmp_process = tmp_process->last_process; 
     }
-    tmp_process->last_process->node_id_pair = std::make_pair(pair_to_split.first, last_id); 
+    tmp_process->last_process->node_id_pair = std::make_pair(pair_to_split.first, new_id); 
     Process* new_process = new Process; 
     new_process->node_id_pair = std::make_pair(new_id, pair_to_split.second); 
     new_process->node_left_right_checked = {true, true}; // TODO: test this
@@ -441,7 +442,7 @@ void add_node_at_current_position()
 {
     std::vector<std::vector<int>> tmp; 
     add_node(current_position, tmp); 
-    add_process(); 
+    // add_process();   // duplication 
     Serial.println("New node added at current position."); 
 }
 
@@ -468,16 +469,51 @@ void check_node_at_new_node()
             // TODO: double check the parameters! 
             if (check_node_connection(first->value, second->value))
             {
-                if ( check_intersection((first->value).position, (second->value).position, (get_node(stack->node_id_pair.first)).position, (get_node(stack->node_id_pair.second)).position))
+                int check = check_intersection((first->value).position, (second->value).position, (get_node(stack->node_id_pair.first)).position, (get_node(stack->node_id_pair.second)).position); 
+                if ( check == 11)
                 {
                     std::pair<int, int> new_node_position = intersection_calculation((first->value).position, (second->value).position, (get_node(stack->node_id_pair.first)).position, (get_node(stack->node_id_pair.second)).position); 
                     std::vector<std::vector<int>> tmp; 
-                    add_node(new_node_position, tmp); 
-                    insert_new_node(node_graph, (first->value).node_id, (second->value).node_id, last_id); 
-                    insert_new_node(node_graph, stack->node_id_pair.first, stack->node_id_pair.second, last_id); 
+                    add_node(new_node_position, tmp);  // TODO: check node at new node? 
+                    insert_new_node((first->value).node_id, (second->value).node_id, last_id); 
+                    insert_new_node(stack->node_id_pair.first, stack->node_id_pair.second, last_id); 
                     split_process(std::make_pair((first->value).node_id, (second->value).node_id), last_id); 
                     split_process(stack->node_id_pair, last_id); 
                     Serial.println("New node added at (" + String(new_node_position.first) + ", " + String(new_node_position.second) + " )."); 
+                }
+                // insert 1 or 2 between 3 4
+                else if ( check == 10 )
+                {
+                    std::pair<int, int> new_node_position = intersection_calculation((first->value).position, (second->value).position, (get_node(stack->node_id_pair.first)).position, (get_node(stack->node_id_pair.second)).position); 
+                    if ( same_position((first->value).position, new_node_position) )
+                    {
+                        insert_new_node(stack->node_id_pair.first, stack->node_id_pair.second, first->value.node_id); 
+                        split_process(stack->node_id_pair, first->value.node_id); 
+                        Serial.println("Inserted node" + String(first->value.node_id) + " between node " + String(get_node(stack->node_id_pair.first).node_id) + " and node " + String(get_node(stack->node_id_pair.second).node_id)); 
+                    }
+                    else if ( same_position((second->value).position, new_node_position) )
+                    {
+                        insert_new_node(stack->node_id_pair.first, stack->node_id_pair.second, second->value.node_id); 
+                        split_process(stack->node_id_pair, second->value.node_id); 
+                        Serial.println("Inserted node" + String(second->value.node_id) + " between node " + String(get_node(stack->node_id_pair.first).node_id) + " and node " + String(get_node(stack->node_id_pair.second).node_id)); 
+                    }
+                }
+                // insert 3 or 4 between 1 2
+                else if ( check == 01 )
+                {
+                    std::pair<int, int> new_node_position = intersection_calculation((first->value).position, (second->value).position, (get_node(stack->node_id_pair.first)).position, (get_node(stack->node_id_pair.second)).position); 
+                    if ( same_position( (get_node(stack->node_id_pair.first)).position, new_node_position) )
+                    {
+                        insert_new_node((first->value).node_id, (second->value).node_id, (get_node(stack->node_id_pair.first)).node_id);  
+                        split_process(std::make_pair((first->value).node_id, (second->value).node_id), (get_node(stack->node_id_pair.first)).node_id); 
+                        Serial.println("Inserted node" + String((get_node(stack->node_id_pair.first)).node_id) + " between node " + String(first->value.node_id) + " and node " + String(second->value.node_id)); 
+                    }
+                    else if ( same_position( (get_node(last_id)).position, new_node_position) )
+                    {
+                        insert_new_node((first->value).node_id, (second->value).node_id, last_id);  
+                        split_process(std::make_pair((first->value).node_id, (second->value).node_id), last_id); 
+                        Serial.println("Inserted node" + String((get_node(last_id)).node_id) + " between node " + String(first->value.node_id) + " and node " + String(second->value.node_id)); 
+                    }
                 }
             }
             second = second->next; 
@@ -489,16 +525,25 @@ void check_node_at_new_node()
 // when a new path is found
 // check if current_position is a new node
 // if so, add the new one
-void check_node_at_new_path() // TODO: double check process stack change? 
+void check_node_at_new_path() 
 {
     struct HashEntry* current = node_graph->table[0];
     while (current != NULL)    
     {
-        if (abs((current->value).position.first - current_position.first)>=5 || abs((current->value).position.second - current_position.second)>=5)
+        if (same_position((current->value).position, current_position) == false)
         {
             std::pair<int, int> new_node_position = current_position; 
             std::vector<std::vector<int>> tmp; 
             add_node(new_node_position, tmp); 
+            // 1. split top process
+                // 1.1  new_node -> stack_second  : checking side = true; other side = migrate; 
+                // 1.2  stack_first -> new_node   : checking side = false; other side = migrate; 
+                // TODO: checking side memo
+
+            // 2. add stack_first and stack_second to tmp
+            // (connection info)
+
+
             Serial.println("New node added at (" + String(new_node_position.first) + ", " + String(new_node_position.second) + " )."); 
         }
         current = current->next;
@@ -581,20 +626,29 @@ std::vector<std::vector<int>> find_new_path()
     std::vector<std::vector<int>> motor_command; 
     while (currentState != finish)
     {
+        // TODO: check if at stack_second
+        if ( same_position(current_position, get_node(stack->node_id_pair.second).position) == false )
+        {
+            // if not, move to that position
+        }
+        
+
         // 1. top process: node_left_right_checked
             // not {true, true} -> motor command generate, [return]
             // {true, true} -> continue
         if ( stack->node_left_right_checked.first == false ) // node left not checked
         {
             motor_command.push_back(left); // turn left
-            motor_command[0][4] = get_angle_num(0, M_PI_2); 
+            motor_command[motor_command.size()-1][4] = get_angle_num(0, M_PI_2); 
             return motor_command; 
+            // TODO: modify node.left_wall
         }
         else if ( stack->node_left_right_checked.second == false ) // node right not checked
         {
             motor_command.push_back(right); // turn right
-            motor_command[0][4] = get_angle_num(0, M_PI_2); 
+            motor_command[motor_command.size()-1][4] = get_angle_num(0, M_PI_2); 
             return motor_command; 
+            // TODO: modify node.right_wall
         }
 
         // 2. top process: first -> second (backwards)
