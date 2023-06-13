@@ -182,6 +182,13 @@ struct HashEntry
 struct HashTable 
 {
     struct HashEntry* table[TABLE_SIZE];
+    HashTable()
+    {
+        for (int i = 0; i < TABLE_SIZE; i++)
+        {
+            table[i] = NULL;
+        }
+    }
 };
 
 int hashFunction(int key) 
@@ -190,7 +197,7 @@ int hashFunction(int key)
     return key % TABLE_SIZE;
 }
 
-HashTable* node_graph = NULL; 
+HashTable* node_graph = new HashTable; 
 Node null_node; 
 int last_id; 
 

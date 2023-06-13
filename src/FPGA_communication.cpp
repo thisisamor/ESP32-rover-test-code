@@ -133,3 +133,12 @@ void write_FPGA(int key_0, int key_1, int camera_command)
 //     }
     
 // }
+
+
+// For test only: 
+String readFromSerial() 
+{
+    while (!Serial.available()) {}
+    String input = Serial.readStringUntil('\n');  
+    return input;
+}

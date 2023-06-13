@@ -87,6 +87,8 @@ void loop() {
     // camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
     // camera_detection_beacon = read_FPGA_beacon(beacon_0, beacon_1); 
 
+
+    Serial.println("Explored nodes: " + get_graph()); 
     // ------- check "state machine" --------------------------------
     int currentState = get_state(); 
     Serial.println("Current state: " + String(currentState)); 
@@ -95,11 +97,15 @@ void loop() {
     if (currentState == 0)
     {
       Serial.println("No wall: Moving forward"); 
-      motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 1, 1}, 25); // 2 revo ~= 350 mm
+      // motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 1, 1}, 25); // 2 revo ~= 350 mm
+      Serial.println("Motor command: forward 25 steps"); 
       add_stepper_count(25); 
+
+      while ( readFromSerial()!="ok" ){} // delay
 
       Serial.println("Tracking current position"); 
       estimate_current_position(25); 
+      Serial.println("Current position: " + String(get_current_position().first) + ", " + String(get_current_position().second)); 
     
       // wall detection
       camera_detection_wall = read_FPGA_wall(wall_0, wall_1, wall_2); 
@@ -123,8 +129,13 @@ void loop() {
     else if (currentState == 1)
     {
       Serial.println("Yes wall: Turning left"); 
-      motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 0, 1}, 5); 
+      // motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 0, 1}, 5); 
+      Serial.println("Motor command: turning left 5 steps (9 degree)"); 
+
+      while ( readFromSerial()!="ok" ){} // delay
+
       estimate_current_angle(1, 5); 
+      Serial.println("Current angle: " + String(get_current_angle())); 
       track_turn_count(5); // not used
     
       // wall detection
@@ -140,8 +151,13 @@ void loop() {
     else if (currentState == 2)
     {
       Serial.println("Yes wall: Turning right"); 
-      motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 1, 0}, 5); 
+      // motor_control_custom(STPL, STPR, DIRL, DIRR, {1, 0, 1, 0}, 5); 
+      Serial.println("Motor command: turning left 5 steps (9 degree)"); 
+      
+      while ( readFromSerial()!="ok" ){} // delay
+
       estimate_current_angle(-1, 5); 
+      Serial.println("Current angle: " + String(get_current_angle())); 
       track_turn_count(5); // not used
     
       // wall detection
