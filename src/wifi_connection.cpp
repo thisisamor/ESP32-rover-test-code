@@ -36,7 +36,7 @@ bool check_wifi()
 }
 
 // ------- POST request ------------------
-void client_post(String message)
+void client_post(String web_addr, String message)
 {
   // DynamicJsonDocument jsonPayload(128); // the capacity of the JSON document
   // jsonPayload["node_id"] = "0"; 
@@ -47,7 +47,7 @@ void client_post(String message)
   // serializeJson(jsonPayload, payload);
 
   HTTPClient http;
-  http.begin("http://35.176.36.0:8080/rover/");
+  http.begin(web_addr);
   http.addHeader("Content-Type", "application/json");
   int httpCode = http.POST(message);
 

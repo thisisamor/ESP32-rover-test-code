@@ -8,7 +8,7 @@
 #include "calculation.h"
 
 // TESTING VARIABLES
-const int TEST_NUM = 0;
+const int TEST_NUM = 2;
 int loopCounter = 0;
 
 // MPU 6050 Variables
@@ -35,6 +35,9 @@ String camera_detection_beacon;
 // int camera_command; 
 double route_angle; 
 
+String web_addr_graph_data = "http://44.211.152.110:3001/nodes/"; 
+String web_addr_current_position = "http://44.211.152.110:3001/rover"; 
+
 void setup() {
   Serial.begin(9600);
   // Serial.begin(115200);
@@ -56,13 +59,13 @@ void setup() {
   pinMode(DIRL, OUTPUT);
 
   // Initializing the MPU 6050
-  mpu6050.activate();
-  mpu6050.gyro_calibrate();
+  // mpu6050.activate();
+  // mpu6050.gyro_calibrate();
 
-  graph_init(); 
+  // graph_init(); 
   // data_memo_init();  // TODO: check & correct start position
 
-  // wifi_connection(); 
+  wifi_connection(); 
 }
 
 void loop() {
@@ -237,14 +240,17 @@ void loop() {
       String message; 
       if (get_state()==5)
       {
-        message = get_graph(); 
+        message = "/20/175/-175/21//21/100/-580/20,22//22/2000/-1870/21/"; 
+        Serial.println("Sending POST request to server: " + message); 
+        client_post(web_addr_graph_data, message); 
       }
       else 
       {
-        message = String(get_current_position().first) + ',' + String (get_current_position().second); 
+        message = "175,-175"; 
+        Serial.println("Sending POST request to server: " + message); 
+        client_post(web_addr_current_position, message); 
+        // message = String(get_current_position().first) + ',' + String (get_current_position().second); 
       }
-      Serial.println("Sending POST request to server: " + message); 
-      client_post(message); 
     }
   }
   else if (TEST_NUM == 3) // test dijkstra algorithm (optional)

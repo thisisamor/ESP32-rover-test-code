@@ -9,7 +9,7 @@
 
 void wifi_connection(); 
 bool check_wifi();
-void client_post(String message); 
+void client_post(String web_addr, String message); 
 void client_get(); 
 
 #endif
